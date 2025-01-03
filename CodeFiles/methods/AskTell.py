@@ -178,9 +178,9 @@ def ask_tell(data, result, data_param, cont_kernel_name, method, batch_size, Wc_
         elif method == 'constant_liar':
             def optimiser_func(x, gp, mu_x, std_x):
                 x_sc = (x - mu_x)/std_x
-                acq = UCB(gp, data_param['trade_off'])
-                acq_val = -acq.evaluate(np.atleast_2d(x_sc))
-                return acq_val
+                acq_val = UCB(gp, np.atleast_2d(x_sc), data_param['trade_off'])
+                # acq_val = -acq.evaluate(np.atleast_2d(x_sc))
+                return -acq_val
 
             bounds = data_param['bounds']
             x_bounds = np.array([d['domain'] for d in bounds if d['type'] == 'continuous'])
@@ -201,6 +201,8 @@ def ask_tell(data, result, data_param, cont_kernel_name, method, batch_size, Wc_
                     elif data_param['prob_type'] == 'Constrained':
                         res = minimize(optimiser_func, x0=x0, args=(gp, mu_x, std_x), method='trust-constr', bounds=x_bounds,
                                        constraints=data_param['Constrains_function'], options={'verbose': 1})  #
+
+                    print(min_val)
                     if res.fun < min_val:
                         min_val = res.fun
                         min_x = res.x
@@ -225,6 +227,20 @@ def ask_tell(data, result, data_param, cont_kernel_name, method, batch_size, Wc_
 
     else:
         print("Check Parameters Error")
+
+
+def UCB(gp, zt_norm, trade_off):
+    # y_samp = gp.posterior_samples_f(np.array(zt_norm), 10000)
+    # mu = np.mean(y_samp, 2) #Mean of the 10000 values sampled at every combination of zt
+    # var = np.square(np.std(y_samp, 2))
+    # var = np.clip(var, 1e-8, np.inf)
+    # s = np.sqrt(var)
+    mu, s = gp.predict(np.array(zt_norm))
+    acq_samp = (mu + trade_off * s).flatten() #
+
+    return acq_samp
+
+
 
 def get_kernel(data_param, cont_kernel_name):
     default_cont_lengthscale = [0.1] * data_param['Nx']  # cont lengthscale
